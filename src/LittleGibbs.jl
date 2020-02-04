@@ -44,38 +44,19 @@ end
 function propose(rng::AbstractRNG, spl::Gibbs{B, T}, model::BlockModel{B},
                  θ_prev::Transition{B, T}) where {B, T}
     params = θ_prev.params
-
-    for block in B
-        conditional_dist = model.conditionals[block]
-        params = conditionally(params, Val(block)) do conditioned
-            rand(rng, conditional_dist(conditioned))
-        end
-    end
-    
-    return Transition(params)
+    conditionals = model.conditionals
+    return Transition(updated(rng, conditionals, params))
 end
 
 
-@generated function conditionally(f, t::NamedTuple{B, T}, ::Val{b}) where {B, T, b}
-    conditioned_values = Expr[]
-    updated_values = Expr[]
-    @gensym update
-    
-    for block in B
-        if block == b
-            push!(updated_values, :($block = $update))
-        else
-            part = :($block = t[$(QuoteNode(block))])
-            push!(updated_values, part)
-            push!(conditioned_values, part)
-        end
-    end
-    
-    return quote
-        let $update = f((;$(conditioned_values...)))
-            (;$(updated_values...))
-        end
-    end
+updated(rng, conditionals::NamedTuple{()}, params::NamedTuple) = params
+
+function updated(rng, conditionals::NamedTuple{B}, params::NamedTuple) where B
+    conditional_dist = first(conditionals)
+    conditioned_values = Base.tail(params)
+    return updated(rng, Base.tail(conditionals),
+                   merge(conditioned_values,
+                        (; first(B) => rand(rng, conditional_dist(conditioned_values)))))
 end
 
 
