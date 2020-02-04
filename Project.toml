@@ -1,0 +1,8 @@
+name = "LittleGibbs"
+uuid = "a851fd22-abba-402a-8658-27d0862bc5ee"
+authors = ["Philipp Gabler <phipsgabler@users.noreply.github.com>"]
+version = "0.1.0"
+
+[deps]
+AbstractMCMC = "80f14c24-f653-4e6a-9b94-39d6b0f70001"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
