@@ -55,6 +55,7 @@ function propose(rng::AbstractRNG, spl::Gibbs{B, T}, model::BlockModel{B},
     return Transition(params)
 end
 
+
 @generated function conditionally(f, t::NamedTuple{B, T}, ::Val{b}) where {B, T, b}
     conditioned_values = Expr[]
     updated_values = Expr[]
