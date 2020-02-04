@@ -1,8 +1,7 @@
 module LittleGibbs
 
 using AbstractMCMC
-import AbstractMCMC: bundle_samples, step!, transition_type
-using MCMCChains: Chains
+import AbstractMCMC: step!, transition_type
 using Random
 
 export Gibbs, BlockModel, Transition
@@ -12,23 +11,24 @@ export Gibbs, BlockModel, Transition
 struct Gibbs{B, T<:NamedTuple} <: AbstractSampler
     init_θ::T
     
-    Gibbs(init_θ::NamedTuple{B}) where {B} = new{B, NamedTuple{B}}(init_θ)
+    Gibbs(init_θ::NamedTuple{B, D}) where {B, D} = new{B, NamedTuple{B, D}}(init_θ)
 end
 
 struct BlockModel{B, C<:NamedTuple} <: AbstractModel
     conditionals::C
     
-    BlockModel(conditionals::NamedTuple{B}) where {B} = new{B, NamedTuple{B}}(conditionals)
+    BlockModel(conditionals::NamedTuple{B, D}) where {B, D} = new{B, NamedTuple{B, D}}(conditionals)
 end
 
 struct Transition{B, T<:NamedTuple} <: AbstractTransition
     params::T
 
-    Transition(params::NamedTuple{B}) where {B} = new{B, NamedTuple{B}}(params)
+    Transition(params::NamedTuple{B, D}) where {B, D} = new{B, NamedTuple{B, D}}(params)
 end
 
 
 transition_type(model::BlockModel{B, T}, spl::Gibbs{B}) where {B, T} = Transition{B, T}
+
 
 function step!(rng::AbstractRNG, model::BlockModel{B}, spl::Gibbs{B},
                ::Integer; kwargs...) where {B}
@@ -75,13 +75,6 @@ end
             (;$(updated_values...))
         end
     end
-end
-
-
-function bundle_samples(rng::AbstractRNG, ::BlockModel{B, T}, ::Gibbs{B}, ::Integer,
-                        ts::Vector{Transition{B, T}}; kwargs...) where {B, T}
-    vals = copy(reduce(hcat, [values(t.params) for t in ts])')
-    return Chains(vals, B)
 end
 
 
