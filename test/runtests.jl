@@ -13,12 +13,13 @@ const s² = 3.0  # sample variance
 τ_given_μ((μ,)) = Gamma(N / 2, 2 / ((N - 1) * s² + N * (μ - ȳ)^2))
 
 function main()
-    println("started...")
-    
     model = BlockModel((μ = μ_given_τ, τ = τ_given_μ))
     sampler = Gibbs((μ = 0.0, τ = 1.0))
-    chain = sample(model, sampler, 1)
-    show(chain)
+    chain = sample(model, sampler, 11_000)
+
+    μ̂ = mean(t -> t.params[:μ], chain[1000:end])
+    τ̂ = mean(t -> t.params[:τ], chain[1000:end])
+    @show μ̂, τ̂
 end
 
 main()
