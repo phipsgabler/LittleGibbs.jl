@@ -37,15 +37,10 @@ end
 
 function step!(rng::AbstractRNG, model::BlockModel{B}, spl::Gibbs{B, T},
                ::Integer, θ_prev::Transition{B, T}; kwargs...) where {B, T}
-    return propose(rng, spl, model, θ_prev)
-end
-
-
-function propose(rng::AbstractRNG, spl::Gibbs{B, T}, model::BlockModel{B},
-                 θ_prev::Transition{B, T}) where {B, T}
     params = θ_prev.params
     conditionals = model.conditionals
     return Transition(updated(rng, conditionals, params))
+    # return propose(rng, spl, model, θ_prev)
 end
 
 
