@@ -40,7 +40,6 @@ function step!(rng::AbstractRNG, model::BlockModel{B}, spl::Gibbs{B, T},
     params = θ_prev.params
     conditionals = model.conditionals
     return Transition(updated(rng, conditionals, params))
-    # return propose(rng, spl, model, θ_prev)
 end
 
 
