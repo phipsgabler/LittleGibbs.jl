@@ -12,6 +12,9 @@ AbstractMCMC = "0.3"
 
 [extras]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+HypothesisTests = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [targets]
-test = ["Distributions"]
+test = ["Distributions", "HypothesisTests", "Plots", "StatsBase"]
