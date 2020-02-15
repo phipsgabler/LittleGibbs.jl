@@ -6,8 +6,9 @@ struct JointDistributionTest <: HypothesisTest
     statistic::Float64
 end
 
-function JointDistributionTest(g, θ::AbstractArray, y::AbstractArray,
-                               θ̃::AbstractArray, ỹ::AbstractArray)
+function JointDistributionTest(
+    g, θ::AbstractArray, y::AbstractArray, θ̃::AbstractArray, ỹ::AbstractArray
+)
     M₁ = length(θ)
     @assert length(y) == M₁
     M₂ = length(θ̃)

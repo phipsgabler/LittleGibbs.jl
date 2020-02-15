@@ -1,47 +1,105 @@
 using Distributions
 using StatsBase: var
 
-function gdemo(x::AbstractArray; α₀ = 2.0, β₀ = 3.0)
-    # Example partially based on https://stats.stackexchange.com/a/266672/234110.
-    # There, α₀ = β₀ = 1 is assumed.
-    # We follow the model used in https://github.com/TuringLang/Turing.jl/blob/60724e22a9831066fc2e0e82d428bd4922bda6e8/test/test_utils/models.jl#L2,
-    # with normally distributed observations and conjugate priors for both parameters:
-    # λ ~ Gamma(α₀, 1 / β₀)
-    # m ~ Normal(0, 1 / λ)
-    # Xᵢ ~ Normal(m, 1 / λ) (iid)
+########## GDEMO ##################
+# Example partially based on https://stats.stackexchange.com/a/266672/234110 and
+# http://www2.stat.duke.edu/~rcs46/modern_bayes17/lecturesModernBayes17/lecture-7/07-gibbs.pdf.
+# We follow the model used in https://github.com/TuringLang/Turing.jl/blob/60724e22a9831066fc2e0e82d428bd4922bda6e8/test/test_utils/models.jl#L2,
+# with normally distributed observations and conjugate priors for both parameters:
+# λ ~ Gamma(α₀, θ₀)
+# m ~ Normal(0, √(1 / λ))
+# Xᵢ ~ Normal(m, √(1 / λ)) (iid)
     
+
+function gdemo_forward(N, α₀, θ₀)
+    λ = rand(Gamma(α₀, θ₀))
+    σ = √(1 / λ)
+    m = rand(Normal(0, σ))
+    x = rand(Normal(m, σ), N)
+    return (λ=λ, m=m), x
+end
+
+function gdemo_logjoint(α₀, θ₀, x, m, λ)
+    σ = √(1 / λ)
+    return logpdf(Gamma(α₀, θ₀), λ) +
+        logpdf(Normal(0, σ), m) +
+        sum(logpdf.(Normal(m, σ), x))
+end
+
+function gdemo_statistics(x)
     # The conditionals and posterior can be formulated in terms of the following statistics:
-    N = length(x)            # number of samples
-    x̄ = mean(x)              # sample mean
-    s² = var(x; mean = x̄, corrected = false)    # sample variance
+    N = length(x) # number of samples
+    x̄ = sum(x) # sample mean
+    s² = var(x; mean=x̄, corrected=false) # sample variance
+    return N, x̄, s²
+end
 
-    # Gibbs conditionals
-    m_given_λ((λ,)) = Normal(x̄, 1 / (N * λ))
-    λ_given_m((m,)) = Gamma(N / 2, 2 / (N * s² + N * (m - x̄)^2))
-    conditionals = (m = m_given_λ, λ = λ_given_m)
+function gdemo_cond_m(α₀, θ₀, x, λ)
+    N, x̄, s² = gdemo_statistics(x)
+    mₙ = (λ * N * x̄) / (1 + N * λ)
+    λₙ = 1 + N * λ
+    σₙ = √(1 / λₙ)
+    return Normal(mₙ, σₙ)
+end
 
-    # Exact posterior
+function gdemo_cond_λ(α₀, θ₀, x, m)
+    N, x̄, s² = gdemo_statistics(x)
     αₙ = α₀ + N / 2
-    βₙ = β₀ + (N * s² + (N * x̄^2) / (1 + N)) / 2
-    posterior_marginals = (m = LocationScale(0, βₙ / αₙ, TDist(2αₙ)), λ = Gamma(αₙ, 1 / βₙ))
-
-    return conditionals, posterior_marginals
+    βₙ = (inv(θ₀) + s² * N + N * (m - x̄)^2) / 2
+    return Gamma(αₙ, inv(βₙ))
 end
 
 
-function ising_conditional(i, N, β)
+function gdemo(x; α₀=2.0, θ₀=inv(3.0))
+    cond_m((λ,)) = gdemo_cond_m(α₀, θ₀, x, λ)
+    cond_λ((m,)) = gdemo_cond_λ(α₀, θ₀, x, m)
+    conditionals = (m=cond_m, λ=cond_λ)
+    return conditionals
+end
+
+
+
+########### 1D ISING MODEL #########################
+function ising_conditional(β, i, M)
     return function (neighbours)
-        x_prev = neighbours[mod1(i - 1, N - 1)]
-        x_next = neighbours[mod1(i, N - 1)]
+        x_prev = neighbours[mod1(i - 1, M - 1)]
+        x_next = neighbours[mod1(i, M - 1)]
         p₁ = exp(-β * (x_prev + x_next))
         p₂ = exp(-β * (abs(x_prev - 1) + abs(x_next - 1)))
         return Bernoulli(p₁ / (p₁ + p₂))
     end
 end
 
-function ising(N, β)
+function isingdemo(β, M)
     # One dimensional Ising model on a circle, without external field;
     # see https://stats.stackexchange.com/a/312044/234110
-    conditional_dists = [Symbol(:x, i) => ising_conditional(i, N, β) for i = 1:N]
+    conditional_dists = [Symbol(:x, i) => ising_conditional(β, i, M) for i = 1:M]
     conditionals = merge(NamedTuple(), conditional_dists)
+end
+
+function ising_conditional(β, i, j, M, N)
+    return function (neighbours)
+        x_prev = neighbours[mod1(i - 1, M - 1)]
+        x_next = neighbours[mod1(i, M - 1)]
+        x_down = neighbours[mod1(j - 1, N - 1)]
+        x_up = neighbours[mod1(j, N - 1)]
+        p₁ = exp(-β * (x_prev + x_next + x_up + x_down))
+        p₂ = exp(-β * (abs(x_prev - 1) + abs(x_next - 1) + abs(x_up - 1) + abs(x_down - 1)))
+        return Bernoulli(p₁ / (p₁ + p₂))
+    end
+end
+
+function isingdemo(β, M, N)
+    # One dimensional Ising model on a circle, without external field;
+    # see https://stats.stackexchange.com/a/312044/234110
+    conditional_dists = [Symbol(:x, i, j) => ising_conditional(β, i, j, M, N) for i = 1:M, j = 1:N]
+    conditionals = merge(NamedTuple(), conditional_dists)
+end
+
+function visualize_ising(θ::AbstractVector{<:Real})
+    join(v == 1 ? '\u2588' : ' ' for v in values(θ))
+end
+
+function visualize_ising(θ::AbstractMatrix{<:Real})
+    join((join(v == 1 ? '\u2588' : ' ' for v in row) for row in eachrow(θ)), '\n')
 end
