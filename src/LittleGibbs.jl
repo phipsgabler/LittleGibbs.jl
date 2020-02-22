@@ -7,7 +7,6 @@ using Random
 export Gibbs, BlockModel, Transition
 
 
-
 struct Gibbs{B, T<:NamedTuple} <: AbstractSampler
     init_θ::T
     
@@ -35,6 +34,7 @@ function step!(rng::AbstractRNG, model::BlockModel{B}, spl::Gibbs{B},
     return Transition(spl.init_θ)
 end
 
+# perform one determinstic scan update (i.e., all conditionals, once, in order of storage)
 function step!(rng::AbstractRNG, model::BlockModel{B}, spl::Gibbs{B, T},
                ::Integer, θ_prev::Transition{B, T}; kwargs...) where {B, T}
     params = θ_prev.params
@@ -42,6 +42,22 @@ function step!(rng::AbstractRNG, model::BlockModel{B}, spl::Gibbs{B, T},
     return Transition(updated(rng, conditionals, params))
 end
 
+
+
+"""
+    updated(rng, conditionals::NamedTuple, params::NamedTuple)
+
+Update all `params` using the `conditionals` after each other, i.e.
+```
+(θ_{1}, θ_{2}, ..., θ_{N}) <- (conditionals[1](θ_{2},...,θ_{N}), θ_{2}, ..., θ_{N})
+(θ_{1}, θ_{2}, θ_{3:end}) <- (θ_{1}, conditionals[2](θ_{1}, θ_{3}, ..., θ_{N}), θ_{3}, ..., θ_{N})
+...
+(θ_{1}, ..., θ_{N-1}, θ_{N}) <- (θ_{1}, ..., θ_{N-1}, conditionals[N](θ_{1}, ..., θ_{N-1}))
+```
+
+(Thanks David Widmann for this most elegant implementation!)
+"""
+function updated end
 
 updated(rng, conditionals::NamedTuple{()}, params::NamedTuple) = params
 
