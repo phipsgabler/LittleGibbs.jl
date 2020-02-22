@@ -16,7 +16,7 @@ function gdemo_forward(N, α₀, θ₀)
     σ = √(1 / λ)
     m = rand(Normal(0, σ))
     x = rand(Normal(m, σ), N)
-    return (λ=λ, m=m), x
+    return (m=m, λ=λ), x
 end
 
 function gdemo_logjoint(α₀, θ₀, x, m, λ)
@@ -29,23 +29,23 @@ end
 function gdemo_statistics(x)
     # The conditionals and posterior can be formulated in terms of the following statistics:
     N = length(x) # number of samples
-    x̄ = sum(x) # sample mean
+    x̄ = mean(x) # sample mean
     s² = var(x; mean=x̄, corrected=false) # sample variance
     return N, x̄, s²
 end
 
 function gdemo_cond_m(α₀, θ₀, x, λ)
     N, x̄, s² = gdemo_statistics(x)
-    mₙ = (λ * N * x̄) / (1 + N * λ)
-    λₙ = 1 + N * λ
+    mₙ = N * x̄ / (N + 1)
+    λₙ = λ * (N + 1)
     σₙ = √(1 / λₙ)
     return Normal(mₙ, σₙ)
 end
 
 function gdemo_cond_λ(α₀, θ₀, x, m)
     N, x̄, s² = gdemo_statistics(x)
-    αₙ = α₀ + N / 2
-    βₙ = (inv(θ₀) + s² * N + N * (m - x̄)^2) / 2
+    αₙ = α₀ + (N - 1) / 2
+    βₙ = (s² * N / 2 + m^2 / 2 + inv(θ₀))
     return Gamma(αₙ, inv(βₙ))
 end
 
