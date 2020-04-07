@@ -15,7 +15,7 @@ function test_gdemo_m(N, α₀, θ₀)
     m′ = m + randn()
     @test isapprox(logpdf(cond_m, m′) - logpdf(cond_m, m),
                    gdemo_logjoint(α₀, θ₀, x, m′, λ) - gdemo_logjoint(α₀, θ₀, x, m, λ),
-                   atol=0.2)
+                   rtol=0.1)
 end
 
 function test_gdemo_λ(N, α₀, θ₀)
@@ -28,7 +28,7 @@ function test_gdemo_λ(N, α₀, θ₀)
     λ′ = max(0, λ + randn())
     @test isapprox(logpdf(cond_λ, λ′) - logpdf(cond_λ, λ),
                    gdemo_logjoint(α₀, θ₀, x, m, λ′) - gdemo_logjoint(α₀, θ₀, x, m, λ),
-                   atol=0.2)
+                   rtol=0.1)
 end
 
 function test_gdemo(observations, α₀, θ₀, m_true, λ_true; m_init=0.0, λ_init=1.0)
@@ -51,8 +51,8 @@ function test_gdemo(observations, α₀, θ₀, m_true, λ_true; m_init=0.0, λ_
     λ̂ = mean(chain_λ)
     # @info (m̂=m̂, λ̂=λ̂)
     # @info (m_true = m_true, λ_true = λ_true)
-    @test isapprox(m̂, m_true, atol=0.2)
-    @test isapprox(λ̂, λ_true, atol=0.2)
+    @test isapprox(m̂, m_true, atol=0.2, rtol=0.0)
+    @test isapprox(λ̂, λ_true, atol=0.2, rtol=0.0)
 end
 
 

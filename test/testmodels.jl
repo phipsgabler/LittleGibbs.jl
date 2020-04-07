@@ -44,7 +44,7 @@ end
 
 function gdemo_cond_λ(α₀, θ₀, x, m)
     N, x̄, s² = gdemo_statistics(x)
-    αₙ = α₀ + (N - 1) / 2
+    αₙ = α₀ + (N - 1) / 2 + 1
     βₙ = (s² * N / 2 + m^2 / 2 + inv(θ₀))
     return Gamma(αₙ, inv(βₙ))
 end
