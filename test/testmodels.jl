@@ -40,6 +40,7 @@ function gdemo_cond_m(α₀, θ₀, x, λ)
     λₙ = λ * (N + 1)
     σₙ = √(1 / λₙ)
     return Normal(mₙ, σₙ)
+    # return Normal(7/6, 0.00001)
 end
 
 function gdemo_cond_λ(α₀, θ₀, x, m)
@@ -55,6 +56,40 @@ function gdemo(x; α₀=2.0, θ₀=inv(3.0))
     cond_λ((m,)) = gdemo_cond_λ(α₀, θ₀, x, m)
     conditionals = (m=cond_m, λ=cond_λ)
     return conditionals
+end
+
+
+############### Mixture of two Gaussians ####################
+# see http://www.cs.columbia.edu/~blei/fogm/2015F/notes/mixtures-and-gibbs.pdf
+# μ ~ arraydist(Normal.(fill(m, K), fill(λ, K)))
+# z ~ arraydist(Categorical.(fill(π, N)))
+# x ~ arraydist(Normal.(μ[z], σ))
+
+function mixture_cond_z(π, K, m, λ, σ, x, μ)
+    function mixtureweight(x)
+        p = π .* pdf.(Normal.(μ, σ), Ref(x))
+        return p ./ sum(p)
+    end
+    return Product(Categorical.(mixtureweight.(x)))
+end
+
+function mixture_cond_μ(π, K, m, λ, σ, x, z)
+    n = [count(z .== k) for k = 1:K]
+
+    # If there were no observations assigned to center `k`, `n[k] == 0`, and
+    # we use the prior instead.
+    x_bar = [(n[k] != 0) ? (sum(x[z .== k]) / n[k]) : m for k = 1:K]
+    λ_hat = [(n[k] != 0) ? inv(n[k] / σ^2 + 1/λ^2) : λ for k = 1:K]
+    μ_hat = [(n[k] != 0) ? x_bar[k] * (n[k] / σ^2) * λ_hat[k] : m for k = 1:K]
+
+    return Product(Normal.(μ_hat, λ_hat))
+end
+
+
+function mixture(π, K, m, λ, σ, x)
+    cond_z((μ,)) = mixture_cond_z(π, K, m, λ, σ, x, μ)
+    cond_μ((z,)) = mixture_cond_μ(π, K, m, λ, σ, x, z)
+    return (z=cond_z, μ=cond_μ)
 end
 
 

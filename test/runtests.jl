@@ -56,26 +56,50 @@ function test_gdemo(observations, α₀, θ₀, m_true, λ_true; m_init=0.0, λ_
 end
 
 
-@testset "gdemo" begin
-    α₀, θ₀ = 2.0, inv(3.0)
-    test_gdemo([1.5, 2.0], α₀, θ₀, 7/6, 24/49)
+# @testset "gdemo" begin
+#     α₀, θ₀ = 2.0, inv(3.0)
+#     test_gdemo([1.5, 2.0], α₀, θ₀, 7/6, 24/49)
     
-    N = 30
-    α₀′, θ₀′ = 1.5, 1.5
-    λ_true = rand(Gamma(α₀′, θ₀′))
-    σ_true = √(1 / λ_true)
-    m_true = rand(Normal(0, σ_true))
-    test_gdemo(σ_true .* randn(N) .+ m_true, α₀′, θ₀′, m_true, λ_true; λ_init = 3.0)
+#     N = 30
+#     α₀′, θ₀′ = 1.5, 1.5
+#     λ_true = rand(Gamma(α₀′, θ₀′))
+#     σ_true = √(1 / λ_true)
+#     m_true = rand(Normal(0, σ_true))
+#     test_gdemo(σ_true .* randn(N) .+ m_true, α₀′, θ₀′, m_true, λ_true; λ_init = 3.0)
     
-    # x = y = -2:0.05:2
-    # @show exact_posterior(-1.5, -1.5)
-    # display(contour(x, y, exact_posterior))
+#     # x = y = -2:0.05:2
+#     # @show exact_posterior(-1.5, -1.5)
+#     # display(contour(x, y, exact_posterior))
+# end
+
+@testset "mixture" begin
+    π = [0.5, 0.5]
+    K = length(π)
+    m = 0.5
+    λ = 2.0
+    σ = 0.1
+    observations = [σ .* randn(10); 1 .+ σ .* randn(10)]
+    N = length(observations)
+    
+    conditionals = mixture(π, K, m, λ, σ, observations)
+    model = BlockModel(conditionals)
+    sampler = Gibbs((z=rand((0, 1), N), μ=randn(2)))
+    
+    chain = sample(model, sampler, 11_000)
+    chain_z = map(t -> t.params[:z], chain[1001:end])
+    chain_μ = map(t -> t.params[:μ], chain[1001:end])
+    
+    ẑ = mean(chain_z)
+    μ̂ = mean(chain_μ)
+    # @test isapprox(ẑ, z_true, atol=0.2, rtol=0.0)
+    @info (ẑ=ẑ, μ̂=μ̂)
+    # @test isapprox(μ̂, [], atol=0.2, rtol=0.0)
 end
 
-@testset "ising" begin
-    N = 20
-    β = 0.5
-    conditionals = isingdemo(β, N)
-    model = BlockModel(conditionals)
-    sampler = Gibbs(merge(NamedTuple(), [Symbol(:x, i) => 0 for i = 1:N]))
-end
+# @testset "ising" begin
+#     N = 20
+#     β = 0.5
+#     conditionals = isingdemo(β, N)
+#     model = BlockModel(conditionals)
+#     sampler = Gibbs(merge(NamedTuple(), [Symbol(:x, i) => 0 for i = 1:N]))
+# end
