@@ -28,7 +28,7 @@ function test_gdemo_λ(N, α₀, θ₀)
     λ′ = max(0, λ + randn())
     @test isapprox(logpdf(cond_λ, λ′) - logpdf(cond_λ, λ),
                    gdemo_logjoint(α₀, θ₀, x, m, λ′) - gdemo_logjoint(α₀, θ₀, x, m, λ),
-                   rtol=0.1)
+                   rtol=0.2)
 end
 
 function test_gdemo(observations, α₀, θ₀, m_true, λ_true; m_init=0.0, λ_init=1.0)
@@ -38,39 +38,48 @@ function test_gdemo(observations, α₀, θ₀, m_true, λ_true; m_init=0.0, λ_
 
     # Tests for expectations
     conditionals = gdemo(observations; α₀=α₀, θ₀=θ₀)
-    # model = BlockModel((m=conditionals[:m], λ=(m,) -> Normal(λ_true, 0)))
-    # model = BlockModel((m=(λ,) -> Normal(m_true, 0), λ=conditionals[:λ]))
+    
+    model = BlockModel((m=conditionals.m, λ=(m,) -> Normal(λ_true, 0)))
+    sampler = Gibbs((m=m_init, λ=λ_init))
+    chain = sample(model, sampler, 10_000)
+    chain_m = map(t -> t.params.m, chain[1_000:end])
+    @test isapprox(mean(chain_m), m_true, atol=0.2, rtol=0.0)
+
+    model = BlockModel((m=(λ,) -> Normal(m_true, 0), λ=conditionals.λ))
+    sampler = Gibbs((m=m_init, λ=λ_init))
+    chain = sample(model, sampler, 10_000)
+    chain_λ = map(t -> t.params.λ, chain[1_000:end])
+    @test isapprox(mean(chain_λ), λ_true, atol=0.2, rtol=0.0)
+
     model = BlockModel(conditionals)
     sampler = Gibbs((m=m_init, λ=λ_init))
-    
-    chain = sample(model, sampler, 11_000)
-    chain_m = map(t -> t.params[:m], chain[1001:end])
-    chain_λ = map(t -> t.params[:λ], chain[1001:end])
-    
-    m̂ = mean(chain_m)
-    λ̂ = mean(chain_λ)
-    # @info (m̂=m̂, λ̂=λ̂)
-    # @info (m_true = m_true, λ_true = λ_true)
-    @test isapprox(m̂, m_true, atol=0.2, rtol=0.0)
-    @test isapprox(λ̂, λ_true, atol=0.2, rtol=0.0)
+    chain = sample(model, sampler, 10_000)
+    chain_m = map(t -> t.params.m, chain[1_000:end])
+    chain_λ = map(t -> t.params.λ, chain[1_000:end])
+    @test isapprox(mean(chain_m), m_true, atol=0.2, rtol=0.0)
+    @test isapprox(mean(chain_λ), λ_true, atol=0.2, rtol=0.0)
 end
 
 
-# @testset "gdemo" begin
-#     α₀, θ₀ = 2.0, inv(3.0)
-#     test_gdemo([1.5, 2.0], α₀, θ₀, 7/6, 24/49)
+@testset "gdemo" begin
+    N = 1000
     
-#     N = 30
-#     α₀′, θ₀′ = 1.5, 1.5
-#     λ_true = rand(Gamma(α₀′, θ₀′))
-#     σ_true = √(1 / λ_true)
-#     m_true = rand(Normal(0, σ_true))
-#     test_gdemo(σ_true .* randn(N) .+ m_true, α₀′, θ₀′, m_true, λ_true; λ_init = 3.0)
+    α₀, θ₀ = 2.0, inv(3.0)
+    λ_true = rand(Gamma(α₀, θ₀))
+    σ_true = √(1 / λ_true)
+    m_true = rand(Normal(0, σ_true))
+    test_gdemo(rand(Normal(m_true, σ_true), N), α₀, θ₀, m_true, λ_true; λ_init = α₀ * θ₀)
     
-#     # x = y = -2:0.05:2
-#     # @show exact_posterior(-1.5, -1.5)
-#     # display(contour(x, y, exact_posterior))
-# end
+    α₀, θ₀ = 1.5, 1.5
+    λ_true = rand(Gamma(α₀, θ₀))
+    σ_true = √(1 / λ_true)
+    m_true = rand(Normal(0, σ_true))
+    test_gdemo(rand(Normal(m_true, σ_true), N), α₀, θ₀, m_true, λ_true; λ_init = α₀ * θ₀)
+    
+    # x = y = -2:0.05:2
+    # @show exact_posterior(-1.5, -1.5)
+    # display(contour(x, y, exact_posterior))
+end
 
 @testset "mixture" begin
     π = [0.5, 0.5]
@@ -91,9 +100,11 @@ end
     
     ẑ = mean(chain_z)
     μ̂ = mean(chain_μ)
-    # @test isapprox(ẑ, z_true, atol=0.2, rtol=0.0)
+    z_true = [fill(1, 10); fill(2, 10)]
+    μ_true = [0, 1]
     @info (ẑ=ẑ, μ̂=μ̂)
-    # @test isapprox(μ̂, [], atol=0.2, rtol=0.0)
+    @test isapprox(ẑ, z_true, atol=0.2, rtol=0.0) || isapprox(ẑ, z_true[[11:20; 1:10]], atol=0.2, rtol=0.0)
+    @test isapprox(sort(μ̂), μ_true, atol=0.2, rtol=0.0)
 end
 
 # @testset "ising" begin
